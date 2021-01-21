@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+  <!-- Minima -->
+  <!-- Hexo theme created by @adisaktijrs -->
+
+  <!-- Basic Page Needs
+  –––––––––––––––––––––––––––––––––––––––––––––––––– -->
+  <meta charset="utf-8">
+
+  
+  <title>How to Make a (sort of clueless) AI Agent: Part 1, Minimax</title>
+
+  
+  <meta name="description" content="Today’s post is the start of a series about how I made a (sort of clueless) AI agent for the game of Three Chess. This will be a high-level descriptio">
+  
+
+  <meta name="author" content="Vanessa Ma">
+
+  
+  <meta property="og:image" content="http://vhxma.github.io/2021/01/21/How-to-Make-a-sort-of-clueless-AI-Agent-Part-1-Minimax/undefined">
+  
+
+  <meta property="og:site_name" content="Vanessa Ma" />
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="How to Make a (sort of clueless) AI Agent: Part 1, Minimax" />
+  
+  <meta property="og:description" content="Today’s post is the start of a series about how I made a (sort of clueless) AI agent for the game of Three Chess. This will be a high-level descriptio">
+  
+  <meta property="og:url" content="http://vhxma.github.io/2021/01/21/How-to-Make-a-sort-of-clueless-AI-Agent-Part-1-Minimax/index.html" />
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="How to Make a (sort of clueless) AI Agent: Part 1, Minimax">
+  
+  <meta name="twitter:description" content="Today’s post is the start of a series about how I made a (sort of clueless) AI agent for the game of Three Chess. This will be a high-level descriptio">
+  
+
+  
+  <meta name="twitter:image" content="http://vhxma.github.io/2021/01/21/How-to-Make-a-sort-of-clueless-AI-Agent-Part-1-Minimax/undefined">
+  
+  <meta name="twitter:url" content="http://vhxma.github.io/2021/01/21/How-to-Make-a-sort-of-clueless-AI-Agent-Part-1-Minimax/index.html" />
+
+  <!-- Mobile Specific Metas
+  –––––––––––––––––––––––––––––––––––––––––––––––––– -->
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- FONT
+  –––––––––––––––––––––––––––––––––––––––––––––––––– -->
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+
+  <!-- CSS
+  –––––––––––––––––––––––––––––––––––––––––––––––––– -->
+  
+<link rel="stylesheet" href="/css/dark.css">
+
+  
+<link rel="stylesheet" href="/css/normalize.css">
+
+  
+<link rel="stylesheet" href="/css/skeleton.css">
+
+  
+<link rel="stylesheet" href="/css/custom.css">
+
+  
+<link rel="stylesheet" href="/css/prism-dark.css">
+
+  
+<link rel="stylesheet" href="/css/prism-line-numbers.css">
+
+
+
+  <!-- Favicon
+  –––––––––––––––––––––––––––––––––––––––––––––––––– -->
+  <link rel="icon" type="image/png" href="/images/butterfly.png">
+
+<meta name="generator" content="Hexo 5.2.0"></head>
+
+<body>
+  <div class="container">
+    <div class="row">
+      <div class="eight columns  offset-by-two">
+
+        <div class="row">
+  <div class="two columns" style="max-width: 50px">
+    <h4 class="mt-2 mode">
+      <div onclick=setDarkMode(true) id="darkBtn"><img src="/images/darkbulb.png"></div>
+      <div onclick=setDarkMode(false) id="lightBtn" class=hidden><img src="/images/lightbulb.png"></div>
+      <script >
+        if (localStorage.getItem('preferredTheme') == 'dark') {
+          setDarkMode(true)
+        }
+        function setDarkMode(isDark) {
+          var darkBtn = document.getElementById('darkBtn')
+          var lightBtn = document.getElementById('lightBtn')
+          if (isDark) {
+            lightBtn.style.display = "block"
+            darkBtn.style.display = "none"
+            localStorage.setItem('preferredTheme', 'dark');
+          } else {
+            lightBtn.style.display = "none"
+            darkBtn.style.display = "block"
+            localStorage.removeItem('preferredTheme');
+          }
+          document.body.classList.toggle("darkmode");
+        }
+      </script>
+    </h4>
+  </div>
+
+  <div class="six columns ml-1" style="max-width: 200px">
+    <h4 class="mt-2">
+      Vanessa Ma
+    </h4>
+  </div>
+
+  <div class="twelve columns">
+    <div class="row">
+      <div class="nine columns left">
+        <a href="/" class="link">Home</a>
+        
+          <a href="/About" class="ml link">About</a>
+        
+      </div>
+    </div>
+    <hr style="margin-bottom: 2.6rem">
+  </div>
+</div>
+
+        <div class="trans">
+            <h4>How to Make a (sort of clueless) AI Agent: Part 1, Minimax</h4>
+
+  <p>Today’s post is the start of a series about how I made a (sort of clueless) AI agent for the game of Three Chess. This will be a high-level description of the algorithms used and the reasoning leading up to their selection. </p>
+<p>FULL DISCLAIMER - you will probably not win with any of the strategies covered here. But that’s okay! </p>
+<p>So the whole premise of this comes from a unit I took last semester called Algorithms, Agents and Artificial Intelligence. In the unit, we covered a variety of topics including search algorithms, pattern matching, sequential decision problems (SDPs) and a whole lot more. Our main project was done in pairs where we investigated two algorithms of our choice and how effective they would be in a game of Three Chess. </p>
+<p>Three Chess is a variant of normal chess, the main difference being that it is played with three players. The version of Three Chess that we simulated was played with a hexagonal board. Moves included castling and the standard movements for each piece.</p>
+<p>Before I get into the nitty gritty of discussing the algorithms used in our agents, I’ll first explain the underlying concepts.</p>
+<p>The first algorithm we need to meet is called Minimax. </p>
+<p>Minimax on a basic level is a move decision-making strategy that aims to minimise the opponent’s chance of winning and maximise your own. It assumes that the opponent will always make the most ‘optimal’ moves for themselves.</p>
+<p>How we define ‘optimal’ depends on the developer. </p>
+<p>But let’s backtrack a bit - when we play a game, we can make what’s called a ‘game tree’. This is essentially a tree that will store all possible game states. For example a basic game tree in tic-tac-toe might look like this:</p>
+<p><img src="/2021/01/21/How-to-Make-a-sort-of-clueless-AI-Agent-Part-1-Minimax/tictactoe.png" alt="Source: https://www.ques10.com/p/12787/draw-game-tree-for-a-tic-tac-toe-problem-1/"></p>
+<p>You can see that each level represents a board after a player’s turn. From this, you might notice how, at each level, the number of game states can start increasing drastically (it should be noted that this diagram only accounts for the next possible moves from a chosen game state in a level so is not representative of the full game tree). This is because each game has a certain set of moves and thus when we move from one level of the game tree to the next, we must account for all possible game boards that could arise from each state. Since we don’t know which ‘path’ has been chosen from the initial game state, we must store all the possibilities. Hence, the number of moves that is possible from a given game state is known as the branching factor. This becomes a limiting factor in how effective Minimax can be due to the computational space limitations. Tic-tac-toe may have a small branching factor, but for games like Chess when the branching factor is a lot bigger, this can cause the game tree to grow massively.</p>
+<p>In order to calculate what is ‘optimal’ for each player, each game state is given a utility. A more negative score would mean that the game state is beneficial for the opponent, whilst a more positive score would mean it is more beneficial for you. How the utility is calculated can depend on many things like the presence of an AI who is determining what ‘useful’ means, or a developer who may have implemented certain strategies. For instance, in a game of chess, a higher score may given to a game state where your pieces are in the centre.</p>
+<p>By assuming the opponent will make the most ‘optimal’ move for themselves, the computer will determine the likely route the game will take and from there, decide what is the best move. It has been proven that if Minimax is able to play out to the end of the game (when someone wins), the player can win even if the opponent does not play optimally. </p>
+<p>Minimax is however, far from perfect. Remember how I said Minimax must play to the end of the game to be fully effective? Well, that rarely happens. </p>
+<p>Because games usually have big branching factors, this means that Minimax must often cut off its game tree not at the end of the game. This leads to various problems such as the horizon effect (when the agent is unable to see a bad event that will happen soon i.e. A sudden change that will mean a future game state would likely lead to a loss). The shallower the depth, the more likely the Minimax agent will fail. </p>
+<p>While there are a multitude of strategies that help improve the depth of the game tree (using symmetry in game boards, alpha-beta pruning, k-move ordering), there are still limitations to how much they can help. Consequently, for multi-player games like Three Chess, Minimax becomes unviable. For one, due to there being three players, the calculation of good and bad becomes more complex than positive and negative numbers. Secondly, the game tree that describes one round of turns suddenly takes up a lot more space than it would for a two-player game. Therefore, it takes even longer to determine a winner, and depth becomes severely limited. </p>
+<p>So now that we’ve explored the basic idea of Minimax, we will next learn about the multi-player adaptions of Minimax and how effective (or ineffective) they are.</p>
+<p><em><strong>My Coding Experience</strong></em></p>
+<p>From my experience of coding this algorithm, I had to create a game tree every time my agent made a move. I did this because of the spatial requirements and difficulty of tracking which game state the game is up to. Spatial complexity aside, we now have a problem of time complexity as creating a tree also takes time.</p>
+<p>(any pointers about my coding are always appreciated! 😊)</p>
+<p><em>Stay tuned for the next part of the journey to learn about Paranoid and MaxN!</em></p>
+
+  <p> — Jan 21, 2021</p>
+  
+  <hr>
+<section id="comments" class="mt-2 mb-3">
+
+  <div id="disqus_thread">
+    <a href="#" class="button button-primary" onclick="loadDisqus();return false;">View / Make Comments</a>
+  </div>
+
+  <script>
+    var disqus_config = function() {
+      this.page.url = 'http://vhxma.github.io/2021/01/21/How-to-Make-a-sort-of-clueless-AI-Agent-Part-1-Minimax/index.html';
+      this.page.identifier = '2021/01/21/How-to-Make-a-sort-of-clueless-AI-Agent-Part-1-Minimax/index.html';
+      this.page.title = 'How to Make a (sort of clueless) AI Agent: Part 1, Minimax';
+    };
+
+    var is_disqus_loaded = false;
+
+    function loadDisqus() {
+      if (!is_disqus_loaded) {
+        is_disqus_loaded = true;
+
+        var d = document,
+          s = d.createElement('script');
+        s.src = 'https://https-adisaktijrs-github-io.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+      }
+    }
+
+  </script>
+  <noscript>Please enable JavaScript to view the <a target="_blank" rel="noopener" href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</section>
+
+
+
+          <div class="row mt-2">
+  <div class="eight columns">
+    <p>Made with ❤ and
+      <a class="footer-link" href="https://hexo.io/themes/#Minima" target="_blank" style="text-decoration: none;" rel="noreferrer">
+       <svg class="svg-hov" style="width: 15px; fill: #03adfc" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><title>Hexo.js</title><path d="M12 .007L1.57 6.056V18.05L12 23.995l10.43-6.049V5.952L12 .007zm4.798 17.105l-.939.521-.939-.521V12.94H9.08v4.172l-.94.521-.938-.521V6.89l.939-.521.939.521v4.172h5.84V6.89l.94-.521.938.521v10.222z"/></svg>
+      </a>
+       at <a href="https://www.google.com/search?q=kendal+jawa+tengah" target="_blank" rel="noreferrer">Kendal</a>.</p>
+  </div>
+
+  <!-- Sepcial thanks to https://simpleicons.org/ for the icons -->
+  <div class="four columns mb-3 posisi">
+    <a href="https://github.com/vhxma" target="_blank" class="footer-link" style="text-decoration: none;" rel="noreferrer">
+      <svg class="github svg-hov" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><title>GitHub</title><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+
+    </a>
+
+    <a class="ml-0 footer-link" href="https://www.linkedin.com/in/vanessamahx" target="_blank" class="footer-link" style="text-decoration: none; margin-left: 1rem;" rel="noreferrer">
+      <svg class="linkedin svg-hov" style="width: 20px;" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><title>LinkedIn</title><image src="/images/test.png"/></svg>
+
+    </a>
+
+    <!-- <a class="ml-0 footer-link" href="https://www.linkedin.com/in/vanessamahx" target="_blank" class="footer-link" style="text-decoration: none; margin-left: 1rem;" rel="noreferrer">
+      <svg class="linkedin svg-hov" style="width: 20px;" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><title>LinkedIn</title><image src="/images/test.png" /></svg>
+
+    </a> -->
+
+  </div>
+</div>
+
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+  <script src="//js/nanobar.min.js"></script>
+  <script>
+    var options = {
+      classname: 'nanobar',
+      id: 'myNanobar'
+    };
+    var nanobar = new Nanobar(options);
+    nanobar.go(30);
+    nanobar.go(76);
+    nanobar.go(100);
+  </script>
+
+</body>
+
+</html>
